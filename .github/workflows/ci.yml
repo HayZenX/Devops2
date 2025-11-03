@@ -1,0 +1,164 @@
+name: CI Pipeline - Core Checks
+
+# Déclencher le workflow sur les Pull Requests et les pushes vers la branche principale
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  # Permet de lancer le workflow manuellement depuis l'interface GitHub
+  workflow_dispatch:
+
+# Exécution de tous les jobs sur la dernière version d'Ubuntu
+jobs:
+  # ----------------------------------------------------------------------
+  # 3. & 4. CODE QUALITY CHECKS (Format Check & Linter)
+  # ----------------------------------------------------------------------
+  code_quality:
+    name: Code Quality (Format & Lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Utilisation d'un super-linter qui inclut la vérification de format et de linter
+      # Remplacer par des actions spécifiques à votre langage si nécessaire (ex: Prettier, Black, ESLint)
+      - name: Run Super-Linter
+        uses: github/super-linter@v6
+        env:
+          # Configuration pour les linters (ajuster selon les langages de votre projet)
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: true
+          # S'assurer qu'il échoue si un fichier doit être formaté/linté (requis par l'étape 3 et 4)
+          DISABLE_ERRORS: false 
+
+  # ----------------------------------------------------------------------
+  # 1. & 2. CORE CHECKS (Unit & E2E Tests)
+  # ----------------------------------------------------------------------
+  tests:
+    name: Unit & E2E Tests
+    runs-on: ubuntu-latest
+    # Dépendance sur le job de qualité de code (optionnel mais recommandé)
+    needs: [code_quality]
+    
+    # Stratégie pour exécuter les tests sur différents environnements (si nécessaire)
+    strategy:
+      matrix:
+        node-version: [20.x] # Ajuster pour Python, Go, etc.
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup environment (ex: Node.js)
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          
+      - name: Install dependencies
+        run: npm install # Remplacer par la commande d'installation de dépendances de votre projet
+
+      # 1. Unit Tests
+      - name: Run Unit Tests
+        run: npm run test:unit # Adapter la commande
+
+      # 2. E2E Tests (nécessite souvent de démarrer les services Docker)
+      # Pour les E2E, vous pouvez utiliser les services GitHub Actions ou démarrer docker-compose
+      - name: Start services for E2E (Optionnel: avec docker compose)
+        run: docker compose up -d db # Démarrer les services nécessaires
+        
+      - name: Run E2E Tests
+        # Attendre que les services soient prêts avant de lancer les tests
+        run: npm run test:e2e # Adapter la commande
+
+  # ----------------------------------------------------------------------
+  # 7. APP BUILD CHECK (Vérification de compilation)
+  # ----------------------------------------------------------------------
+  app_build_check:
+    name: Application Build Check
+    runs-on: ubuntu-latest
+    needs: [code_quality] # S'assurer que le code est propre avant de construire
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup environment (ex: Node.js)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install dependencies & Build
+        # Compile/build application, vérifie les dépendances, et crée les artefacts
+        run: |
+          npm install 
+          npm run build # La commande de compilation/build de votre application (ex: tsc, go build, etc.)
+
+      # Optionnel : Sauvegarder les artefacts de build si besoin
+      - name: Check build artifacts (ex: check 'dist' directory exists)
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "::error::Build failed: dist directory not found."
+            exit 1
+          fi
+
+  # ----------------------------------------------------------------------
+  # 6. DOCKER BUILD CHECK (Vérification de l'image Docker)
+  # ----------------------------------------------------------------------
+  docker_build_check:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    # Dépend de la vérification de build de l'application (le code doit compiler avant d'être conteneurisé)
+    needs: [app_build_check] 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image and verify
+        # Construit l'image et la tagge (sans la pousser)
+        run: |
+          # Utiliser la commande standard de build
+          docker build --no-cache -f Dockerfile -t local-app-check:latest .
+          echo "Docker image built successfully."
+          
+          # Vérification simple de la taille (exemple de vérification d'optimisation)
+          IMAGE_SIZE=$(docker inspect --format='{{.Size}}' local-app-check:latest)
+          # Convertir la taille en Mo pour le log
+          IMAGE_SIZE_MB=$((IMAGE_SIZE / 1024 / 1024))
+          echo "Image size: ${IMAGE_SIZE_MB}MB"
+          
+          # Exemple de test d'optimisation : fail si > 100 Mo
+          if [ $IMAGE_SIZE_MB -gt 100 ]; then
+            echo "::warning::Image size is large: ${IMAGE_SIZE_MB}MB. Consider further optimization."
+          fi
+
+
+  # ----------------------------------------------------------------------
+  # 5. DOCUMENTATION BUILD CHECK
+  # ----------------------------------------------------------------------
+  documentation_check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Check for broken links in Markdown files (incl. README)
+        # Action populaire pour vérifier les liens brisés dans les fichiers Markdown
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-curl: yes
+          # Réglage pour ignorer certains liens si nécessaire
+          config-file: '.markdown-link-check.json' # Fichier de configuration optionnel
+          
+      # Exemple d'étape pour "vérifier que le README est à jour" (logique à définir)
+      - name: Check README for basic content
+        run: |
+          # Vérifier si le README contient le titre du projet par exemple
+          if ! grep -q "2025-devops-ci" README.md; then
+            echo "::warning::README.md might be incomplete (missing project title)."
+          fi
+
+# Note : Les dépendances entre jobs (via `needs:`) garantissent l'ordre d'exécution (Qualité -> Build -> Docker Build).
