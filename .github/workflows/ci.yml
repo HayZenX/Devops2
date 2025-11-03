@@ -23,16 +23,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Utilisation d'un super-linter qui inclut la vérification de format et de linter
-      # Remplacer par des actions spécifiques à votre langage si nécessaire (ex: Prettier, Black, ESLint)
       - name: Run Super-Linter
         uses: github/super-linter@v6
         env:
-          # Configuration pour les linters (ajuster selon les langages de votre projet)
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: true
-          # S'assurer qu'il échoue si un fichier doit être formaté/linté (requis par l'étape 3 et 4)
           DISABLE_ERRORS: false 
 
   # ----------------------------------------------------------------------
@@ -159,6 +155,3 @@ jobs:
           # Vérifier si le README contient le titre du projet par exemple
           if ! grep -q "2025-devops-ci" README.md; then
             echo "::warning::README.md might be incomplete (missing project title)."
-          fi
-
-# Note : Les dépendances entre jobs (via `needs:`) garantissent l'ordre d'exécution (Qualité -> Build -> Docker Build).
