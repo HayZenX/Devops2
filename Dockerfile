@@ -1,50 +1,52 @@
-# Builder stage
+# --- Étape 1 : Builder ---
+# Utiliser une image Node.js avec Alpine pour une base légère
 FROM node:20-alpine AS builder
 
-# Install pnpm
-RUN corepack enable pnpm
+# Installation de pnpm
+RUN npm install -g pnpm
 
-# Set working directory
+# Définir le répertoire de travail
 WORKDIR /app
 
-# Copy package files
+# Copier les fichiers de définition de dépendances pour profiter du cache Docker
+# pnpm nécessite pnpm-lock.yaml et package.json
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Installer les dépendances
+# Utiliser l'option --production si vous ne voulez pas des devDependencies dans le conteneur final (RECOMMANDÉ)
+RUN pnpm install --prod
 
-# Copy application files
+# Copier le reste du code
 COPY . .
 
-# Build the application
-RUN pnpm build
+# Si votre application nécessite une compilation (ex: TypeScript, React build), exécutez la ici
+# RUN pnpm run build
 
-# Production stage
-FROM node:20-alpine AS production
+# --- Étape 2 : Production (Image légère et sécurisée) ---
+FROM node:20-slim AS production
 
-# Install pnpm
-RUN corepack enable pnpm
+# Installation de pnpm globalement pour garantir l'exécution de l'application si besoin
+RUN npm install -g pnpm
 
-# Create non-root user
-RUN addgroup --system appgroup && \
-    adduser --system appuser --ingroup appgroup
-
-# Set working directory
-WORKDIR /app
-
-# Copy built files and dependencies
-COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
-COPY --from=builder --chown=appuser:appgroup /app/package.json ./package.json
-COPY --from=builder --chown=appuser:appgroup /app/pnpm-lock.yaml ./pnpm-lock.yaml
-
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
-
-# Switch to non-root user
+# Créer un utilisateur non-root pour l'exécution (sécurité)
+RUN addgroup --system appgroup && adduser --system appuser --ingroup appgroup
 USER appuser
 
-# Expose application port
-EXPOSE 3000
+# Définir le répertoire de travail
+WORKDIR /app
 
-# Start the application
+# Copier les fichiers nécessaires depuis l'étape 'builder'
+# On copie pnpm-lock.yaml et package.json pour les commandes de démarrage si besoin
+COPY --from=builder --chown=appuser:appgroup /app/package.json ./
+COPY --from=builder --chown=appuser:appgroup /app/pnpm-lock.yaml ./
+# Copier le dossier de modules pnpm
+COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
+# Copier le code source ou le répertoire de build (ex: dist)
+COPY --from=builder --chown=appuser:appgroup /app/src ./src
+
+# Exposer le port de l'application
+EXPOSE 8080
+
+# Définir la commande de lancement de l'application
+# **ACTION REQUISE : Vérifiez cette commande pour votre application spécifique**
 CMD ["pnpm", "start"]

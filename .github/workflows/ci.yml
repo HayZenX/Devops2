@@ -1,16 +1,28 @@
-name: CI Pipeline
+name: CI Pipeline - Full Verification
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+# Définition des dépendances (needs:) pour un ordre d'exécution logique
+# Qualité -> Build App -> Docker Build -> Tests & Doc
 
 jobs:
-  unit-tests:
+  # ----------------------------------------------------------------------
+  # 3. & 4. CODE QUALITY & AUTO-FORMAT FIX (Format Check & Linter)
+  # ----------------------------------------------------------------------
+  code_quality:
+    name: Code Quality & Auto-Format Fix
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Pour l'auto-commit
       
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -24,39 +36,177 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
-        
-      - name: Setup test database
+
+      # --- 3. Format Check (Vérifier si formaté) ---
+      - name: 3. Format Check (Verify)
+        # **ACTION REQUISE : Adaptez cette commande pour votre formateur (Prettier, Black, etc.)**
+        run: pnpm format:check 
+        continue-on-error: true 
+        id: format_check 
+
+      # --- 4. Linter Check ---
+      - name: 4. Linter Run
+        # **ACTION REQUISE : Adaptez cette commande pour votre linter (ESLint, pylint, etc.)**
+        run: pnpm lint 
+
+      # --- Auto-Format Fix et Commit (Partie 3: Advanced) ---
+      - name: Auto-Format Fix and Commit
+        if: steps.format_check.outcome == 'failure'
         run: |
-          echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/todos_test" > .env
-          pnpm db:push
+          echo "Format check failed. Attempting automatic fix."
+          # **ACTION REQUISE : Adaptez cette commande pour corriger**
+          pnpm format:fix 
+          
+          git status --porcelain
+          if [[ -z $(git status --porcelain) ]]; then
+            echo "No changes after formatter. Skipping commit."
+          else
+            git config user.name github-actions[bot]
+            git config user.email github-actions[bot]@users.noreply.github.com
+            git add .
+            git commit -m "style: Auto-fix formatting errors" 
+            git push
+            echo "Code formatting fixed and committed to PR branch."
+          fi
 
-      - name: Run unit tests
-        run: pnpm test
-        env:
-          NODE_ENV: test
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/todos_test
-          CI: true
-
-  e2e-tests:
+  # ----------------------------------------------------------------------
+  # 7. APP BUILD CHECK (Compilation/Build)
+  # ----------------------------------------------------------------------
+  app_build_check:
+    name: 7. Application Build Check
     runs-on: ubuntu-latest
+    needs: [code_quality] 
     steps:
       - uses: actions/checkout@v3
       
-      - name: Setup Node.js
+      - name: Setup Node.js & pnpm
         uses: actions/setup-node@v3
         with:
           node-version: '20'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
           
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
+      - name: Install dependencies & Compile/Build
+        run: |
+          pnpm install
+          # **ACTION REQUISE : Adaptez la commande de build**
+          pnpm build 
+          
+      - name: Check build artifacts
+        # Vérifiez que le dossier ou le fichier de build existe
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "::error::Build artifacts (dist directory) not found."
+            exit 1
+          fi
+
+  # ----------------------------------------------------------------------
+  # 6. DOCKER BUILD CHECK (Vérification de l'image)
+  # ----------------------------------------------------------------------
+  docker_build_check:
+    name: 6. Docker Build Check
+    runs-on: ubuntu-latest
+    needs: [app_build_check] 
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build Docker image and verify optimization
+        run: |
+          # Construction de l'image Docker (sans la pousser)
+          docker build --no-cache -f Dockerfile -t local-app-check:latest .
+          echo "Docker image built successfully."
+          # Vérification de la taille pour l'optimisation
+          IMAGE_SIZE_MB=$(docker inspect --format='{{.Size}}' local-app-check:latest | awk '{ print int($1/1024/1024) }')
+          echo "Image size: ${IMAGE_SIZE_MB}MB"
+          if [ $IMAGE_SIZE_MB -gt 150 ]; then
+            echo "::warning::Image size is large: ${IMAGE_SIZE_MB}MB. Check multi-stage build."
+          fi
+
+  # ----------------------------------------------------------------------
+  # 1. UNIT TESTS
+  # ----------------------------------------------------------------------
+  unit_tests:
+    name: 1. Unit Tests
+    runs-on: ubuntu-latest
+    needs: [code_quality] # Peut être exécuté après la qualité du code
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v2
         with:
           version: 8
           
       - name: Install dependencies
         run: pnpm install
         
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps
-        
+      - name: Run unit tests
+        # Utilise la commande existante de votre fichier ci.yml
+        run: pnpm test
+
+  # ----------------------------------------------------------------------
+  # 2. E2E TESTS (Démarrer les conteneurs pour le test)
+  # ----------------------------------------------------------------------
+  e2e_tests:
+    name: 2. E2E Tests
+    runs-on: ubuntu-latest
+    needs: [docker_build_check, unit_tests] # Doit attendre que l'image soit construite et que les UT passent
+    
+    steps:
+      # Nécessaire pour que Docker Compose puisse utiliser l'image construite et le docker-compose.yml
+      - uses: actions/checkout@v3
+      
+      # --- Lancement des conteneurs pour le test E2E (CORRECTION) ---
+      - name: Start services with Docker Compose
+        # Lance l'application et la base de données en arrière-plan
+        # Le service 'app' sera construit à partir de l'image locale créée par 'docker_build_check'
+        run: docker compose up -d
+
+      - name: Wait for App Health Check
+        # Attendre que le service 'app' soit prêt et sain avant de lancer les E2E
+        uses: jakejarvis/wait-for-docker-compose@v1
+        with:
+          # Attendre que le service 'app' (nommé dans docker-compose.yml) soit sain
+          service: app
+          timeout: 120 # Secondes d'attente max
+
+      # --- Exécution des tests E2E ---
+      - name: Setup Node.js & pnpm
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Install dependencies and Playwright browsers
+        run: |
+          pnpm install
+          pnpm exec playwright install --with-deps
+
       - name: Run E2E tests
+        # L'application est maintenant disponible sur localhost:8080 (vu depuis le runner GitHub Actions)
+        # **ACTION REQUISE : Si vos tests E2E ciblent un nom d'hôte spécifique, changez-le pour 'http://localhost:8080'**
         run: pnpm test:e2e
+        
+      - name: Stop services
+        if: always() # Toujours s'assurer que les conteneurs sont arrêtés
+        run: docker compose down
+
+  # ----------------------------------------------------------------------
+  # 5. DOCUMENTATION BUILD CHECK
+  # ----------------------------------------------------------------------
+  documentation_check:
+    name: 5. Documentation Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check for broken links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-curl: yes
+          check-path: '.'
