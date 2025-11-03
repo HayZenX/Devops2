@@ -1,44 +1,50 @@
-# --- Étape 1 : Builder ---
-# Utiliser une image de base complète pour compiler/installer les dépendances
+# Builder stage
 FROM node:20-alpine AS builder
 
-# Définir le répertoire de travail
+# Install pnpm
+RUN corepack enable pnpm
+
+# Set working directory
 WORKDIR /app
 
-# Copier les fichiers de définition de dépendances pour profiter du cache Docker
-COPY package*.json ./
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
 
-# Installer les dépendances
-# Utilisez --omit=dev si vous n'avez pas besoin des dépendances de développement dans le conteneur final
-RUN npm install --omit=dev
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
-# Copier le reste du code
+# Copy application files
 COPY . .
 
-# Si votre application nécessite une étape de compilation (ex: TypeScript, React build)
-# RUN npm run build
+# Build the application
+RUN pnpm build
 
-# --- Étape 2 : Production ---
-# Utiliser une image de base légère pour l'exécution (meilleure sécurité et taille)
-FROM node:20-slim AS production
+# Production stage
+FROM node:20-alpine AS production
 
-# Créer un utilisateur non-root pour l'exécution (sécurité accrue)
-RUN addgroup --system appgroup && adduser --system appuser --ingroup appgroup
-USER appuser
+# Install pnpm
+RUN corepack enable pnpm
 
-# Définir le répertoire de travail
+# Create non-root user
+RUN addgroup --system appgroup && \
+    adduser --system appuser --ingroup appgroup
+
+# Set working directory
 WORKDIR /app
 
-# Copier uniquement les fichiers nécessaires depuis l'étape 'builder'
-# Ici on copie node_modules et le code source compilé/prêt à l'emploi
-COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
-# Si vous avez une étape de build, copiez le répertoire de build (ex: dist)
-# COPY --from=builder --chown=appuser:appgroup /app/dist ./dist 
-COPY --from=builder --chown=appuser:appgroup /app/src ./src
+# Copy built files and dependencies
+COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/package.json ./package.json
+COPY --from=builder --chown=appuser:appgroup /app/pnpm-lock.yaml ./pnpm-lock.yaml
 
-# Exposer le port de l'application
-EXPOSE 8080
+# Install production dependencies only
+RUN pnpm install --prod --frozen-lockfile
 
-# Définir la commande de lancement de l'application
-CMD ["node", "src/index.js"]
+# Switch to non-root user
+USER appuser
+
+# Expose application port
+EXPOSE 3000
+
+# Start the application
+CMD ["pnpm", "start"]

@@ -1,48 +1,37 @@
 version: '3.8'
 
 services:
-  # Service de l'application (votre code)
   app:
-    # Utiliser le Dockerfile dans le répertoire actuel pour construire l'image
     build: 
       context: .
       dockerfile: Dockerfile
-    
-    # Mapper le port 8080 du conteneur au port 8080 de la machine hôte
     ports:
-      - "8080:8080"
-      
-    # Variables d'environnement pour l'application
+      - "3000:3000"
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgres://user:password@db:5432/myapp
-      
-    # Dépend de la base de données
+      DATABASE_URL: postgres://postgres:postgres@db:5432/todos
     depends_on:
       db:
-        condition: service_healthy # Attendre que le service 'db' soit sain
-        
-    # Vérification de santé (exemple pour une API HTTP)
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s # Laisser du temps à l'application de démarrer
+      start_period: 40s
 
-  # Service de la base de données PostgreSQL
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: myapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: todos
+    ports:
+      - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
-      
-    # Vérification de santé de la base de données
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todos"]
       interval: 5s
       timeout: 5s
       retries: 5
