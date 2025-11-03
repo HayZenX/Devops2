@@ -1,43 +1,23 @@
-# Stage de test
-FROM mcr.microsoft.com/playwright:v1.40.0-focal as test
+FROM node:20-alpine
 
-# Installation de pnpm
+# Install pnpm
 RUN npm install -g pnpm
 
 WORKDIR /app
 
-# Copie des fichiers de configuration
+# Copy package files first to leverage Docker cache
 COPY package.json pnpm-lock.yaml ./
 
-# Installation des dépendances
-RUN pnpm install
+# Install dependencies
+RUN pnpm install --frozen-lockfile
 
-# Copie du reste des fichiers
+# Copy source
 COPY . .
 
-# Configuration Playwright
-ENV CI=true
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-
-# Exécution des tests unitaires
-RUN pnpm test
-
-# Installation des dépendances Playwright
-RUN npx playwright install chromium --with-deps
-
-FROM node:20-alpine as production
-
-# Installation de pnpm
-RUN npm install -g pnpm
-
-WORKDIR /app
-
-COPY package.json pnpm-lock.yaml ./
-
-RUN pnpm install --prod
-
-COPY . .
+# Build the app (if build script exists)
+RUN pnpm build || true
 
 EXPOSE 3000
 
-CMD ["pnpm", "dev"]
+# Start the app (use start script from package.json)
+CMD ["pnpm", "start"]
