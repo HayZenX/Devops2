@@ -1,6 +1,5 @@
-name: CI Pipeline - Core Checks
+name: CI Pipeline
 
-# Déclencher le workflow sur les Pull Requests et les pushes vers la branche principale
 on:
   push:
     branches:
@@ -8,37 +7,93 @@ on:
   pull_request:
     branches:
       - main
-  # Permet de lancer le workflow manuellement depuis l'interface GitHub
   workflow_dispatch:
 
-# Exécution de tous les jobs sur la dernière version d'Ubuntu
 jobs:
-  # ----------------------------------------------------------------------
-  # 3. & 4. CODE QUALITY CHECKS (Format Check & Linter)
-  # ----------------------------------------------------------------------
-  code_quality:
-    name: Code Quality (Format & Lint)
+  install:
+    name: Install Dependencies
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Super-Linter
-        uses: github/super-linter@v6
-        env:
-          DEFAULT_BRANCH: main
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: true
-          DISABLE_ERRORS: false 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-  # ----------------------------------------------------------------------
-  # 1. & 2. CORE CHECKS (Unit & E2E Tests)
-  # ----------------------------------------------------------------------
-  tests:
-    name: Unit & E2E Tests
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v3
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+  format:
+    needs: install
+    name: Format Check
     runs-on: ubuntu-latest
-    # Dépendance sur le job de qualité de code (optionnel mais recommandé)
-    needs: [code_quality]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Check formatting
+        run: pnpm format:check
+
+  lint:
+    needs: install
+    name: Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run linter
+        run: pnpm lint
+
+  unit-tests:
+    needs: [format, lint]
+    name: Unit Tests
     
     # Stratégie pour exécuter les tests sur différents environnements (si nécessaire)
     strategy:
