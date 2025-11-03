@@ -54,21 +54,24 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
       - name: Install dependencies
-        run: npm install # Remplacer par la commande d'installation de dépendances de votre projet
+        run: pnpm install
 
       # 1. Unit Tests
       - name: Run Unit Tests
-        run: npm run test:unit # Adapter la commande
+        run: pnpm test
 
-      # 2. E2E Tests (nécessite souvent de démarrer les services Docker)
-      # Pour les E2E, vous pouvez utiliser les services GitHub Actions ou démarrer docker-compose
-      - name: Start services for E2E (Optionnel: avec docker compose)
-        run: docker compose up -d db # Démarrer les services nécessaires
+      # 2. E2E Tests
+      - name: Install Playwright Browsers
+        run: pnpm playwright install --with-deps
         
       - name: Run E2E Tests
-        # Attendre que les services soient prêts avant de lancer les tests
-        run: npm run test:e2e # Adapter la commande
+        run: pnpm run e2e
 
   # ----------------------------------------------------------------------
   # 7. APP BUILD CHECK (Vérification de compilation)
@@ -86,11 +89,15 @@ jobs:
         with:
           node-version: 20.x
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
       - name: Install dependencies & Build
-        # Compile/build application, vérifie les dépendances, et crée les artefacts
         run: |
-          npm install 
-          npm run build # La commande de compilation/build de votre application (ex: tsc, go build, etc.)
+          pnpm install 
+          pnpm run build
 
       # Optionnel : Sauvegarder les artefacts de build si besoin
       - name: Check build artifacts (ex: check 'dist' directory exists)
@@ -154,4 +161,5 @@ jobs:
         run: |
           # Vérifier si le README contient le titre du projet par exemple
           if ! grep -q "2025-devops-ci" README.md; then
-            echo "::warning::README.md might be incomplete (missing project title)."
+            echo "::warning::README.md might be incomplete (missing project title)"
+          fi

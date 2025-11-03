@@ -102,6 +102,31 @@ describe('AddTodoForm', () => {
     render(<AddTodoForm onAddTodo={onAddTodo} />);
 
     const input = screen.getByPlaceholderText('What needs to be done?');
+    await user.type(input, 'New Todo{enter}');
+
+    expect(onAddTodo).toHaveBeenCalledWith('New Todo');
+  });
+
+  it('should enable input and button after error', async () => {
+    const user = userEvent.setup();
+    const onAddTodo = vi.fn().mockRejectedValue(new Error('Failed to add todo'));
+    render(<AddTodoForm onAddTodo={onAddTodo} />);
+
+    const input = screen.getByPlaceholderText('What needs to be done?');
+    const button = screen.getByRole('button', { name: /add todo/i });
+
+    await user.type(input, 'New Todo');
+    await user.click(button);
+
+    await vi.waitFor(() => {
+      expect(input).not.toBeDisabled();
+      expect(button).not.toBeDisabled();
+    });
+  });
+    const onAddTodo = vi.fn().mockResolvedValue(undefined);
+    render(<AddTodoForm onAddTodo={onAddTodo} />);
+
+    const input = screen.getByPlaceholderText('What needs to be done?');
     await user.type(input, 'New Todo{Enter}');
 
     expect(onAddTodo).toHaveBeenCalledWith('New Todo');

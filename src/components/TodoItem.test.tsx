@@ -48,6 +48,47 @@ describe('TodoItem', () => {
     await user.click(screen.getByLabelText('Mark as complete'));
 
     expect(onToggle).toHaveBeenCalledWith(1);
+  });
+
+  it('should call onDelete when delete button is clicked', async () => {
+    const user = userEvent.setup();
+    const todo = createMockTodo();
+    const onToggle = vi.fn();
+    const onDelete = vi.fn();
+
+    render(<TodoItem todo={todo} onToggle={onToggle} onDelete={onDelete} />);
+
+    await user.click(screen.getByLabelText('Delete todo'));
+
+    expect(onDelete).toHaveBeenCalledWith(1);
+  });
+
+  it('should show different toggle button label based on completion status', () => {
+    const activeTodo = createMockTodo({ completed: false });
+    const completedTodo = createMockTodo({ completed: true });
+    const onToggle = vi.fn();
+    const onDelete = vi.fn();
+
+    const { rerender } = render(
+      <TodoItem todo={activeTodo} onToggle={onToggle} onDelete={onDelete} />
+    );
+    expect(screen.getByLabelText('Mark as complete')).toBeInTheDocument();
+
+    rerender(
+      <TodoItem todo={completedTodo} onToggle={onToggle} onDelete={onDelete} />
+    );
+    expect(screen.getByLabelText('Mark as incomplete')).toBeInTheDocument();
+  });
+
+  it('should apply strikethrough style to completed todos', () => {
+    const todo = createMockTodo({ completed: true });
+    const onToggle = vi.fn();
+    const onDelete = vi.fn();
+
+    render(<TodoItem todo={todo} onToggle={onToggle} onDelete={onDelete} />);
+    
+    expect(screen.getByText('Test Todo')).toHaveClass('line-through');
+  });
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 

@@ -48,6 +48,53 @@ describe('TodoList', () => {
 
     render(<TodoList todos={todos} onToggle={onToggle} onDelete={onDelete} />);
 
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.getByText('Active Todo')).toBeInTheDocument();
+    expect(screen.getByText('Completed Todo')).toBeInTheDocument();
+  });
+
+  it('should call onToggle when todo is clicked', async () => {
+    const user = userEvent.setup();
+    const todos = [createMockTodo({ id: 1, title: 'Test Todo' })];
+    const onToggle = vi.fn();
+    const onDelete = vi.fn();
+
+    render(<TodoList todos={todos} onToggle={onToggle} onDelete={onDelete} />);
+
+    await user.click(screen.getByLabelText('Mark as complete'));
+    expect(onToggle).toHaveBeenCalledWith(1);
+  });
+
+  it('should call onDelete when delete button is clicked', async () => {
+    const user = userEvent.setup();
+    const todos = [createMockTodo({ id: 1, title: 'Test Todo' })];
+    const onToggle = vi.fn();
+    const onDelete = vi.fn();
+
+    render(<TodoList todos={todos} onToggle={onToggle} onDelete={onDelete} />);
+
+    await user.click(screen.getByLabelText('Delete todo'));
+    expect(onDelete).toHaveBeenCalledWith(1);
+  });
+
+  it('should sort todos by creation date', () => {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const todos = [
+      createMockTodo({ id: 1, title: 'Newer Todo', createdAt: now }),
+      createMockTodo({ id: 2, title: 'Older Todo', createdAt: yesterday }),
+    ];
+    const onToggle = vi.fn();
+    const onDelete = vi.fn();
+
+    render(<TodoList todos={todos} onToggle={onToggle} onDelete={onDelete} />);
+
+    const todoElements = screen.getAllByRole('listitem');
+    expect(todoElements[0]).toHaveTextContent('Newer Todo');
+    expect(todoElements[1]).toHaveTextContent('Older Todo');
+  });
+
     expect(screen.getByText('Active Todo')).toBeInTheDocument();
     expect(screen.getByText('Completed Todo')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();

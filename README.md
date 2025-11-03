@@ -112,7 +112,7 @@ Below are all the commands you can run in this project. In the terminal, always 
 **Prerequisites:** Must run `pnpm build` first
 
 ## Testing Commands
-
+ 
 ### `pnpm test`
 
 **What it does:** Runs all tests once and shows results  
