@@ -9,7 +9,7 @@ services:
     # Le nom de l'hôte utilisé par les autres services (y compris les tests E2E)
     container_name: app_service 
     ports:
-      - "8080:8080"
+      - "3000:3000"
       
     environment:
       NODE_ENV: production
@@ -18,7 +18,8 @@ services:
       
     # Ajout du Health Check (Requis par la Partie 1)
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      # Healthcheck against app root or /health if implemented
+      test: ["CMD", "curl", "-f", "http://localhost:3000/" ]
       interval: 10s
       timeout: 5s
       retries: 5
