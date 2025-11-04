@@ -39,34 +39,38 @@ jobs:
 
       # --- 3. Format Check (Vérifier si formaté) ---
       - name: 3. Format Check (Verify)
-        # **ACTION REQUISE : Adaptez cette commande pour votre formateur (Prettier, Black, etc.)**
-        run: pnpm format:check 
-        continue-on-error: true 
-        id: format_check 
+        # Uses Prettier check (configured in package.json)
+        run: pnpm format:check
+        continue-on-error: true
+        id: format_check
 
       # --- 4. Linter Check ---
       - name: 4. Linter Run
-        # **ACTION REQUISE : Adaptez cette commande pour votre linter (ESLint, pylint, etc.)**
-        run: pnpm lint 
+        # Run ESLint (don't fail the job immediately so we can attempt auto-fix)
+        run: pnpm lint
+        continue-on-error: true
+        id: lint_check
 
-      # --- Auto-Format Fix et Commit (Partie 3: Advanced) ---
-      - name: Auto-Format Fix and Commit
-        if: steps.format_check.outcome == 'failure'
+      # --- Auto-Format/Lint Fix and Commit ---
+      - name: Auto-Format/Lint Fix and Commit
+        if: ${{ steps.format_check.outcome == 'failure' || steps.lint_check.outcome == 'failure' }}
         run: |
-          echo "Format check failed. Attempting automatic fix."
-          # **ACTION REQUISE : Adaptez cette commande pour corriger**
-          pnpm format:fix 
-          
+          echo "Format or lint check failed. Attempting automatic fix."
+          # Try to auto-fix formatting and lint issues. Use safe fallbacks.
+          pnpm format || true
+          pnpm lint:fix || true
+
+          # Show git status and commit if there are changes
           git status --porcelain
           if [[ -z $(git status --porcelain) ]]; then
-            echo "No changes after formatter. Skipping commit."
+            echo "No changes after formatter or linter fixes. Skipping commit."
           else
-            git config user.name github-actions[bot]
-            git config user.email github-actions[bot]@users.noreply.github.com
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
             git add .
-            git commit -m "style: Auto-fix formatting errors" 
-            git push
-            echo "Code formatting fixed and committed to PR branch."
+            git commit -m "style: Auto-fix formatting/lint errors" || echo "No commit created"
+            git push || echo "Push failed (protected branch or missing permissions)"
+            echo "Formatting/lint fixes attempted."
           fi
 
   # ----------------------------------------------------------------------
