@@ -32,9 +32,10 @@ describe('TodoItem', () => {
 
     render(<TodoItem todo={todo} onToggle={onToggle} onDelete={onDelete} />);
 
-    expect(screen.getByText('Test Todo')).toBeInTheDocument();
+    const todoText = screen.getByText('Test Todo');
+    expect(todoText).toBeInTheDocument();
+    expect(todoText).toHaveClass('line-through');
     expect(screen.getByLabelText('Mark as incomplete')).toBeInTheDocument();
-    expect(screen.getByText('Test Todo')).toHaveClass('line-through');
   });
 
   it('should call onToggle when toggle button is clicked', async () => {
