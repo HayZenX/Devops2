@@ -8,11 +8,11 @@ on:
   workflow_dispatch:
 
 # Définition des dépendances (needs:) pour un ordre d'exécution logique
-# Qualité -> Build App -> Docker Build -> Tests & Doc
+# 1. Code Quality -> 2. Unit Tests -> 3. Build -> 4. E2E Tests
 
 jobs:
   # ----------------------------------------------------------------------
-  # 3. & 4. CODE QUALITY & AUTO-FORMAT FIX (Format Check & Linter)
+  # 1. CODE QUALITY & AUTO-FORMAT FIX (Format Check & Linter)
   # ----------------------------------------------------------------------
   code_quality:
     name: Code Quality & Auto-Format Fix
@@ -77,9 +77,9 @@ jobs:
   # 7. APP BUILD CHECK (Compilation/Build)
   # ----------------------------------------------------------------------
   app_build_check:
-    name: 7. Application Build Check
+    name: 3. Application Build Check
     runs-on: ubuntu-latest
-    needs: [code_quality] 
+    needs: [unit_tests]
     steps:
       - uses: actions/checkout@v3
       
@@ -109,9 +109,9 @@ jobs:
   # 6. DOCKER BUILD CHECK (Vérification de l'image)
   # ----------------------------------------------------------------------
   docker_build_check:
-    name: 6. Docker Build Check
+    name: 3b. Docker Build Check
     runs-on: ubuntu-latest
-    needs: [app_build_check] 
+    needs: [app_build_check]
     steps:
       - uses: actions/checkout@v3
 
@@ -131,9 +131,9 @@ jobs:
   # 1. UNIT TESTS
   # ----------------------------------------------------------------------
   unit_tests:
-    name: 1. Unit Tests
+    name: 2. Unit Tests
     runs-on: ubuntu-latest
-    needs: [code_quality] # Peut être exécuté après la qualité du code
+    needs: [code_quality] # Doit être exécuté après la qualité du code et avant le build
     steps:
       - uses: actions/checkout@v3
       
@@ -156,9 +156,9 @@ jobs:
   # 2. E2E TESTS (Démarrer les conteneurs pour le test)
   # ----------------------------------------------------------------------
   e2e_tests:
-    name: 2. E2E Tests
+    name: 4. E2E Tests
     runs-on: ubuntu-latest
-    needs: [docker_build_check, unit_tests] # Doit attendre que l'image soit construite et que les UT passent
+    needs: [docker_build_check] # Doit être exécuté après le build et le docker build
     
     steps:
       # Nécessaire pour que Docker Compose puisse utiliser l'image construite et le docker-compose.yml

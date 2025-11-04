@@ -13,7 +13,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      exclude: ['e2e/**', '**/*.d.ts', '**/*.config.*'],
     },
+    pool: 'forks', // Meilleure isolation des tests
+    testTimeout: 10000,
+    maxConcurrency: 5,
+    maxWorkers: 2,
+    minWorkers: 1,
+    teardownTimeout: 1000
   },
   resolve: {
     alias: {
