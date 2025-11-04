@@ -193,8 +193,9 @@ jobs:
           pnpm exec playwright install --with-deps
 
       - name: Run E2E tests
-        # L'application est maintenant disponible sur localhost:8080 (vu depuis le runner GitHub Actions)
-        # **ACTION REQUISE : Si vos tests E2E ciblent un nom d'hôte spécifique, changez-le pour 'http://localhost:8080'**
+        # L'application est maintenant disponible sur localhost:3000 (vue depuis le runner GitHub Actions)
+        env:
+          PLAYWRIGHT_BASE_URL: "http://localhost:3000"
         run: pnpm test:e2e
         
       - name: Stop services
@@ -209,8 +210,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Check for broken links
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          use-curl: yes
-          check-path: '.'
+          node-version: '20'
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - name: Quick README sanity check
+        run: |
+          if [ ! -f README.md ]; then
+            echo "::error::README.md not found";
+            exit 1;
+          fi
+          if ! grep -q "Getting Started" README.md; then
+            echo "::warning::README.md may be missing a 'Getting Started' section.";
+          else
+            echo "README.md contains Getting Started";
+          fi

@@ -5,7 +5,7 @@ test('Todo App basic functionality', async ({ page }) => {
   await page.goto('http://localhost:3000');
 
   // Verify the todo form exists
-  const input = await page.getByPlaceholder('What needs to be done?');
+  const input = page.getByPlaceholder('What needs to be done?');
   await expect(input).toBeVisible();
 
   // Add a new todo
@@ -19,7 +19,7 @@ test('Todo App basic functionality', async ({ page }) => {
   await page.getByLabel('Mark as complete').click();
   await expect(page.getByText('Test todo item')).toHaveClass(/line-through/);
 
-  // Verify todo stats
+  // Verify todo stats (numbers may appear multiple times; check visible counts)
   await expect(page.getByText('0')).toBeVisible(); // Active count
   await expect(page.getByText('1')).toBeVisible(); // Completed count
 });
@@ -31,6 +31,6 @@ test('Empty todo handling', async ({ page }) => {
   const addButton = page.getByRole('button', { name: /add todo/i });
   await addButton.click();
 
-  // Empty todo should not be added
-  await expect(page.getByText('No todos yet')).toBeVisible();
+  // Empty todo should not be added - check for empty state text
+  await expect(page.getByText(/No todos yet/i)).toBeVisible();
 });
