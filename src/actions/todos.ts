@@ -1,11 +1,11 @@
-import { createServerFn } from '@tanstack/react-start';
-import { db } from '../db';
-import { todos, type NewTodo } from '../db/schema';
-import { eq, desc } from 'drizzle-orm';
-import { z } from 'zod';
+import { createServerFn } from "@tanstack/react-start";
+import { db } from "../db";
+import { todos, type NewTodo } from "../db/schema";
+import { eq, desc } from "drizzle-orm";
+import { z } from "zod";
 
 const NewTodoSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
+  title: z.string().min(1, "Title is required"),
 });
 
 const TodoIdSchema = z.object({
@@ -14,12 +14,12 @@ const TodoIdSchema = z.object({
 
 const UpdateTodoSchema = z.object({
   id: z.number(),
-  title: z.string().min(1, 'Title is required'),
+  title: z.string().min(1, "Title is required"),
 });
 
 // Get all todos
 export const getTodos = createServerFn({
-  method: 'GET',
+  method: "GET",
 }).handler(async () => {
   const allTodos = await db.select().from(todos).orderBy(desc(todos.createdAt));
   return allTodos;
@@ -35,7 +35,7 @@ export const createTodo = createServerFn()
       completed: false,
     };
     const [todo] = await db.insert(todos).values(newTodo).returning();
-    console.log('[createTodo] Created todo:', JSON.stringify(todo, null, 2));
+    console.log("[createTodo] Created todo:", JSON.stringify(todo, null, 2));
     return todo;
   });
 
@@ -47,7 +47,7 @@ export const toggleTodo = createServerFn()
 
     const [todo] = await db.select().from(todos).where(eq(todos.id, id));
     if (!todo) {
-      throw new Error('Todo not found');
+      throw new Error("Todo not found");
     }
     const [updatedTodo] = await db
       .update(todos)

@@ -1,5 +1,5 @@
-import { type Todo } from '../db/schema';
-import { TodoItem } from './TodoItem';
+import { type Todo } from "../db/schema";
+import { TodoItem } from "./TodoItem";
 
 interface TodoListProps {
   todos: Todo[];

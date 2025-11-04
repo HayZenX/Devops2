@@ -1,13 +1,13 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { TodoStats } from './TodoStats';
+import type { Meta, StoryObj } from "@storybook/react";
+import { TodoStats } from "./TodoStats";
 
 const meta = {
-  title: 'Components/TodoStats',
+  title: "Components/TodoStats",
   component: TodoStats,
   parameters: {
-    layout: 'padded',
+    layout: "padded",
   },
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 } satisfies Meta<typeof TodoStats>;
 
 export default meta;

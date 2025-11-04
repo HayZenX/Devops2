@@ -1,14 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
-import { useState } from 'react';
-import { getTodos, createTodo, toggleTodo, deleteTodo } from '../actions/todos';
-import { type Todo } from '../db/schema';
-import { PageHeader } from '../components/PageHeader';
-import { AddTodoForm } from '../components/AddTodoForm';
-import { TodoStats } from '../components/TodoStats';
-import { TodoList } from '../components/TodoList';
+import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { getTodos, createTodo, toggleTodo, deleteTodo } from "../actions/todos";
+import { type Todo } from "../db/schema";
+import { PageHeader } from "../components/PageHeader";
+import { AddTodoForm } from "../components/AddTodoForm";
+import { TodoStats } from "../components/TodoStats";
+import { TodoList } from "../components/TodoList";
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   component: App,
   loader: async () => {
     const todos = await getTodos();
@@ -31,7 +31,7 @@ function App() {
       });
       setTodos([newTodo, ...todos]);
     } catch (error) {
-      console.error('Failed to create todo:', error);
+      console.error("Failed to create todo:", error);
       throw error;
     }
   };
@@ -41,7 +41,7 @@ function App() {
       const updatedTodo = await toggleTodoFn({ data: { id } });
       setTodos(todos.map((todo) => (todo.id === id ? updatedTodo : todo)));
     } catch (error) {
-      console.error('Failed to toggle todo:', error);
+      console.error("Failed to toggle todo:", error);
     }
   };
 
@@ -50,7 +50,7 @@ function App() {
       await deleteTodoFn({ data: { id } });
       setTodos(todos.filter((todo) => todo.id !== id));
     } catch (error) {
-      console.error('Failed to delete todo:', error);
+      console.error("Failed to delete todo:", error);
     }
   };
 

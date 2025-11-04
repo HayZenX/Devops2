@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from '@storybook/test';
-import { AddTodoForm } from './AddTodoForm';
+import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "@storybook/test";
+import { AddTodoForm } from "./AddTodoForm";
 
 const meta = {
-  title: 'Components/AddTodoForm',
+  title: "Components/AddTodoForm",
   component: AddTodoForm,
   parameters: {
-    layout: 'padded',
+    layout: "padded",
   },
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   args: {
     onAddTodo: fn(async (title: string) => {
-      console.log('Adding todo:', title);
+      console.log("Adding todo:", title);
       await new Promise((resolve) => setTimeout(resolve, 500));
     }),
   },
@@ -25,7 +25,7 @@ export const Default: Story = {};
 export const WithSubmitDelay: Story = {
   args: {
     onAddTodo: fn(async (title: string) => {
-      console.log('Adding todo with delay:', title);
+      console.log("Adding todo with delay:", title);
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }),
   },
@@ -33,7 +33,7 @@ export const WithSubmitDelay: Story = {
     docs: {
       description: {
         story:
-          'This story demonstrates the form behavior with a longer submission delay. Try adding a todo to see the loading state.',
+          "This story demonstrates the form behavior with a longer submission delay. Try adding a todo to see the loading state.",
       },
     },
   },
@@ -42,16 +42,16 @@ export const WithSubmitDelay: Story = {
 export const WithError: Story = {
   args: {
     onAddTodo: fn(async (title: string) => {
-      console.log('Attempting to add todo:', title);
+      console.log("Attempting to add todo:", title);
       await new Promise((resolve) => setTimeout(resolve, 500));
-      throw new Error('Failed to create todo');
+      throw new Error("Failed to create todo");
     }),
   },
   parameters: {
     docs: {
       description: {
         story:
-          'This story simulates an error during todo creation. The form will still function, but the submission will fail.',
+          "This story simulates an error during todo creation. The form will still function, but the submission will fail.",
       },
     },
   },

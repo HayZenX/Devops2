@@ -1,12 +1,12 @@
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Plus } from "lucide-react";
+import { useState } from "react";
 
 interface AddTodoFormProps {
   onAddTodo: (title: string) => Promise<void>;
 }
 
 export function AddTodoForm({ onAddTodo }: AddTodoFormProps) {
-  const [newTodoTitle, setNewTodoTitle] = useState('');
+  const [newTodoTitle, setNewTodoTitle] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -16,7 +16,7 @@ export function AddTodoForm({ onAddTodo }: AddTodoFormProps) {
     setIsAdding(true);
     try {
       await onAddTodo(newTodoTitle.trim());
-      setNewTodoTitle('');
+      setNewTodoTitle("");
     } finally {
       setIsAdding(false);
     }
